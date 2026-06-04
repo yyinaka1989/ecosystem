@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生物 タイムアタッククイズ</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Orbitron:wght@700;900&display=swap');
+
+  :root {
+    --bg: #04080f;
+    --surface: #0a1628;
+    --surface2: #0e1f3a;
+    --accent: #00e5ff;
+    --accent2: #00ff9d;
+    --accent3: #ff6b35;
+    --warn: #ffcc02;
+    --danger: #ff3355;
+    --text: #e8f4f8;
+    --text-dim: #6a8fa8;
+    --glow: 0 0 20px rgba(0,229,255,0.4);
+    --glow2: 0 0 20px rgba(0,255,157,0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* 背景アニメーション */
+  .bg-grid {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridMove 20s linear infinite;
+  }
+  @keyframes gridMove { to { background-position: 40px 40px; } }
+
+  .dna-particles {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+  }
+  .particle {
+    position: absolute; width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent); opacity: 0.3;
+    animation: float linear infinite;
+  }
+  @keyframes float {
+    0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.4; }
+    90% { opacity: 0.2; }
+    100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; }
+  }
+
+  #app {
+    position: relative; z-index: 1;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+
+  /* ==================== タイトル画面 ==================== */
+  #screen-title {
+    text-align: center; max-width: 640px; width: 100%;
+  }
+
+  .title-badge {
+    display: inline-block;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 11px; letter-spacing: 3px;
+    padding: 5px 16px; border-radius: 20px;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+    box-shadow: var(--glow);
+  }
+
+  .main-title {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 900; font-size: clamp(28px, 6vw, 52px);
+    line-height: 1.1; margin-bottom: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 20px rgba(0,229,255,0.5));
+  }
+
+  .sub-title {
+    color: var(--text-dim); font-size: 14px; margin-bottom: 40px;
+    letter-spacing: 1px;
+  }
+
+  .mode-select {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .mode-card {
+    background: var(--surface);
+    border: 1px solid rgba(0,229,255,0.15);
+    border-radius: 12px; padding: 20px 16px;
+    cursor: pointer; transition: all 0.25s;
+    text-align: center;
+  }
+  .mode-card:hover, .mode-card.selected {
+    border-color: var(--accent);
+    background: rgba(0,229,255,0.06);
+    box-shadow: var(--glow);
+    transform: translateY(-2px);
+  }
+  .mode-card.selected { background: rgba(0,229,255,0.1); }
+  .mode-icon { font-size: 28px; margin-bottom: 8px; }
+  .mode-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .mode-desc { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+  .chapter-select {
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+    margin-bottom: 32px;
+  }
+  .chap-btn {
+    background: var(--surface);
+    border: 1px solid rgba(0,229,255,0.15);
+    color: var(--text); font-size: 12px;
+    padding: 8px 16px; border-radius: 20px;
+    cursor: pointer; transition: all 0.2s;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .chap-btn:hover, .chap-btn.selected {
+    border-color: var(--accent2);
+    background: rgba(0,255,157,0.08);
+    box-shadow: var(--glow2);
+    color: var(--accent2);
+  }
+
+  .start-btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; color: var(--bg);
+    font-size: 16px; font-weight: 900;
+    padding: 16px 48px; border-radius: 50px;
+    cursor: pointer; transition: all 0.25s;
+    font-family: 'Noto Sans JP', sans-serif;
+    letter-spacing: 2px;
+    box-shadow: 0 4px 24px rgba(0,229,255,0.4);
+  }
+  .start-btn:hover { transform: scale(1.04); box-shadow: 0 6px 32px rgba(0,229,255,0.6); }
+  .start-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .q-count-select { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 24px; }
+  .q-count-select label { font-size: 13px; color: var(--text-dim); }
+  .q-count-select select {
+    background: var(--surface); color: var(--text);
+    border: 1px solid rgba(0,229,255,0.2); border-radius: 8px;
+    padding: 6px 12px; font-size: 13px;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+
+  /* ==================== ゲーム画面 ==================== */
+  #screen-game { max-width: 720px; width: 100%; }
+
+  .game-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .progress-info { font-size: 12px; color: var(--text-dim); letter-spacing: 1px; }
+  .progress-info span { color: var(--accent); font-weight: 700; font-size: 14px; }
+
+  .score-display {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 18px; color: var(--accent2);
+    text-shadow: var(--glow2);
+  }
+
+  .timer-ring {
+    position: relative; width: 56px; height: 56px;
+  }
+  .timer-ring svg { width: 56px; height: 56px; transform: rotate(-90deg); }
+  .timer-ring circle {
+    fill: none; stroke-width: 4;
+    cx: 28; cy: 28; r: 24;
+  }
+  .timer-bg { stroke: rgba(0,229,255,0.1); }
+  .timer-fill {
+    stroke: var(--accent);
+    stroke-linecap: round;
+    stroke-dasharray: 150.8;
+    transition: stroke-dashoffset 0.1s linear, stroke 0.3s;
+  }
+  .timer-num {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px; font-weight: 700;
+    color: var(--accent);
+  }
+
+  .progress-bar-wrap {
+    height: 3px; background: rgba(255,255,255,0.05);
+    border-radius: 2px; margin-bottom: 28px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px; transition: width 0.3s;
+  }
+
+  .question-card {
+    background: var(--surface);
+    border: 1px solid rgba(0,229,255,0.12);
+    border-radius: 16px; padding: 28px 32px;
+    margin-bottom: 20px;
+    position: relative; overflow: hidden;
+  }
+  .question-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), transparent);
+  }
+
+  .q-type-badge {
+    font-size: 10px; letter-spacing: 2px;
+    color: var(--accent); background: rgba(0,229,255,0.08);
+    border: 1px solid rgba(0,229,255,0.2);
+    padding: 3px 10px; border-radius: 10px;
+    display: inline-block; margin-bottom: 14px;
+  }
+
+  .question-text {
+    font-size: clamp(15px, 3vw, 19px); font-weight: 700;
+    line-height: 1.7; color: var(--text);
+  }
+
+  .chapter-tag {
+    position: absolute; top: 16px; right: 20px;
+    font-size: 10px; color: var(--text-dim);
+    background: rgba(255,255,255,0.04);
+    padding: 3px 10px; border-radius: 8px;
+  }
+
+  .choices {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+
+  .choice-btn {
+    background: var(--surface2);
+    border: 1px solid rgba(0,229,255,0.1);
+    color: var(--text); font-size: 13px;
+    padding: 14px 16px; border-radius: 12px;
+    cursor: pointer; transition: all 0.2s;
+    text-align: left; line-height: 1.5;
+    font-family: 'Noto Sans JP', sans-serif;
+    position: relative;
+  }
+  .choice-btn .choice-label {
+    display: inline-block; width: 22px; height: 22px; line-height: 22px;
+    background: rgba(0,229,255,0.1); border-radius: 50%;
+    text-align: center; font-size: 11px; font-weight: 700;
+    margin-right: 10px; color: var(--accent); flex-shrink: 0;
+  }
+  .choice-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: rgba(0,229,255,0.06);
+    box-shadow: var(--glow);
+  }
+  .choice-btn.correct {
+    border-color: var(--accent2);
+    background: rgba(0,255,157,0.1);
+    box-shadow: 0 0 16px rgba(0,255,157,0.3);
+    animation: popIn 0.3s;
+  }
+  .choice-btn.wrong {
+    border-color: var(--danger);
+    background: rgba(255,51,85,0.1);
+    box-shadow: 0 0 16px rgba(255,51,85,0.2);
+    animation: shake 0.4s;
+  }
+  .choice-btn.dimmed { opacity: 0.3; }
+  .choice-btn:disabled { cursor: default; }
+
+  @keyframes popIn {
+    0% { transform: scale(0.96); } 50% { transform: scale(1.03); } 100% { transform: scale(1); }
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+
+  /* 結果フィードバック */
+  .feedback-bar {
+    height: 4px; border-radius: 2px; margin-bottom: 12px;
+    transition: background 0.3s;
+    background: transparent;
+  }
+  .feedback-bar.correct-fb { background: linear-gradient(90deg, var(--accent2), transparent); }
+  .feedback-bar.wrong-fb { background: linear-gradient(90deg, var(--danger), transparent); }
+
+  .answer-hint {
+    font-size: 12px; color: var(--text-dim); min-height: 20px;
+    padding: 0 4px; margin-top: 8px;
+    transition: opacity 0.3s;
+  }
+  .answer-hint .correct-ans { color: var(--accent2); font-weight: 700; }
+
+  /* ==================== 結果画面 ==================== */
+  #screen-result { max-width: 540px; width: 100%; text-align: center; }
+
+  .result-grade {
+    font-size: 72px; margin-bottom: 8px;
+    animation: gradeIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275);
+  }
+  @keyframes gradeIn { 0% { transform: scale(0) rotate(-20deg); } 100% { transform: scale(1) rotate(0); } }
+
+  .result-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(18px, 4vw, 28px);
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 4px;
+  }
+
+  .result-comment { color: var(--text-dim); font-size: 13px; margin-bottom: 32px; }
+
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin-bottom: 32px;
+  }
+  .stat-box {
+    background: var(--surface); border: 1px solid rgba(0,229,255,0.12);
+    border-radius: 12px; padding: 16px 10px;
+  }
+  .stat-val {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 22px; color: var(--accent); margin-bottom: 4px;
+  }
+  .stat-lbl { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+
+  .miss-list {
+    background: var(--surface); border: 1px solid rgba(255,51,85,0.15);
+    border-radius: 12px; padding: 20px; margin-bottom: 24px;
+    text-align: left; max-height: 220px; overflow-y: auto;
+  }
+  .miss-list h3 {
+    font-size: 12px; letter-spacing: 2px; color: var(--danger);
+    margin-bottom: 14px;
+  }
+  .miss-item { font-size: 12px; color: var(--text-dim); margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .miss-item:last-child { border: none; margin: 0; padding: 0; }
+  .miss-q { color: var(--text); font-weight: 700; margin-bottom: 3px; }
+  .miss-a { color: var(--accent2); }
+
+  .result-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .retry-btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; color: var(--bg);
+    font-size: 14px; font-weight: 900;
+    padding: 12px 32px; border-radius: 50px;
+    cursor: pointer; transition: all 0.25s;
+    font-family: 'Noto Sans JP', sans-serif;
+    box-shadow: 0 4px 20px rgba(0,229,255,0.3);
+  }
+  .retry-btn:hover { transform: scale(1.05); box-shadow: 0 6px 28px rgba(0,229,255,0.5); }
+  .back-btn {
+    background: transparent; border: 1px solid rgba(0,229,255,0.2);
+    color: var(--text-dim); font-size: 14px;
+    padding: 12px 24px; border-radius: 50px;
+    cursor: pointer; transition: all 0.25s;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--text); }
+
+  /* コンボ表示 */
+  .combo-display {
+    position: fixed; top: 20px; right: 20px; z-index: 100;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px; color: var(--warn);
+    text-shadow: 0 0 12px rgba(255,204,2,0.6);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .combo-display.show { opacity: 1; }
+
+  /* スクリーン切替 */
+  .screen { display: none; }
+  .screen.active { display: block; animation: fadeIn 0.4s; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* タイマー警告 */
+  .timer-num.warn { color: var(--warn); }
+  .timer-num.danger { color: var(--danger); }
+  .timer-fill.warn { stroke: var(--warn); }
+  .timer-fill.danger { stroke: var(--danger); }
+
+  /* スコアポップ */
+  .score-pop {
+    position: fixed; pointer-events: none; z-index: 200;
+    font-family: 'Orbitron', sans-serif; font-size: 18px;
+    font-weight: 900; color: var(--accent2);
+    text-shadow: var(--glow2);
+    animation: scorePop 1s forwards;
+  }
+  @keyframes scorePop {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-60px) scale(1.3); }
+  }
+
+  scrollbar-width: thin;
+  .miss-list::-webkit-scrollbar { width: 4px; }
+  .miss-list::-webkit-scrollbar-track { background: transparent; }
+  .miss-list::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="dna-particles" id="particles"></div>
+<div class="combo-display" id="comboDisplay"></div>
+
+<div id="app">
+
+  <!-- タイトル画面 -->
+  <div id="screen-title" class="screen active">
+    <div class="title-badge">🔬 BIOLOGY QUIZ</div>
+    <div class="main-title">生命の連続性<br>タイムアタック</div>
+    <div class="sub-title">3年理科「生命の連続性・遺伝・進化」全用語制覇</div>
+
+    <div class="mode-select">
+      <div class="mode-card selected" onclick="selectMode('term2def', this)">
+        <div class="mode-icon">📖</div>
+        <div class="mode-title">用語 → 説明</div>
+        <div class="mode-desc">用語を見て意味を選ぶ</div>
+      </div>
+      <div class="mode-card" onclick="selectMode('def2term', this)">
+        <div class="mode-icon">🔍</div>
+        <div class="mode-title">説明 → 用語</div>
+        <div class="mode-desc">説明を読んで用語を選ぶ</div>
+      </div>
+      <div class="mode-card" onclick="selectMode('mixed', this)">
+        <div class="mode-icon">🔀</div>
+        <div class="mode-title">ランダムMIX</div>
+        <div class="mode-desc">両方ランダムに出題</div>
+      </div>
+      <div class="mode-card" onclick="selectMode('speed', this)">
+        <div class="mode-icon">⚡</div>
+        <div class="mode-title">スピードモード</div>
+        <div class="mode-desc">制限時間15秒・高速連続</div>
+      </div>
+    </div>
+
+    <div class="chapter-select">
+      <button class="chap-btn selected" onclick="toggleChap(0, this)">全章</button>
+      <button class="chap-btn" onclick="toggleChap(1, this)">1章：ふえ方と成長</button>
+      <button class="chap-btn" onclick="toggleChap(2, this)">2章：遺伝と遺伝子</button>
+      <button class="chap-btn" onclick="toggleChap(3, this)">3章：多様性と進化</button>
+    </div>
+
+    <div class="q-count-select">
+      <label>出題数：</label>
+      <select id="qCount">
+        <option value="5">5問（お試し）</option>
+        <option value="10" selected>10問</option>
+        <option value="15">15問</option>
+        <option value="24">全問（24問）</option>
+      </select>
+    </div>
+
+    <button class="start-btn" onclick="startGame()">▶ スタート！</button>
+  </div>
+
+  <!-- ゲーム画面 -->
+  <div id="screen-game" class="screen">
+    <div class="game-header">
+      <div class="progress-info">問題 <span id="qNum">1</span> / <span id="qTotal">10</span></div>
+      <div class="timer-ring" id="timerRing">
+        <svg viewBox="0 0 56 56">
+          <circle class="timer-bg" cx="28" cy="28" r="24"/>
+          <circle class="timer-fill" id="timerCircle" cx="28" cy="28" r="24" style="stroke-dashoffset:0"/>
+        </svg>
+        <div class="timer-num" id="timerNum">20</div>
+      </div>
+      <div class="score-display">💎 <span id="scoreNum">0</span></div>
+    </div>
+    <div class="feedback-bar" id="feedbackBar"></div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+    </div>
+    <div class="question-card">
+      <span class="chapter-tag" id="chapterTag"></span>
+      <div class="q-type-badge" id="qTypeBadge">用語 → 説明</div>
+      <div class="question-text" id="questionText"></div>
+    </div>
+    <div class="choices" id="choices"></div>
+    <div class="answer-hint" id="answerHint"></div>
+  </div>
+
+  <!-- 結果画面 -->
+  <div id="screen-result" class="screen">
+    <div class="result-grade" id="resultGrade"></div>
+    <div class="result-label" id="resultLabel"></div>
+    <div class="result-comment" id="resultComment"></div>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-val" id="resCorrect">0</div><div class="stat-lbl">正解数</div></div>
+      <div class="stat-box"><div class="stat-val" id="resScore">0</div><div class="stat-lbl">スコア</div></div>
+      <div class="stat-box"><div class="stat-val" id="resTime">0s</div><div class="stat-lbl">平均回答時間</div></div>
+    </div>
+    <div class="miss-list" id="missList" style="display:none">
+      <h3>📌 復習リスト</h3>
+      <div id="missItems"></div>
+    </div>
+    <div class="result-btns">
+      <button class="retry-btn" onclick="retryGame()">🔄 もう一度</button>
+      <button class="back-btn" onclick="goTitle()">🏠 タイトルへ</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ==================== データ ====================
+const QUIZ_DATA = [
+  // 1章：ふえ方と成長
+  { term: "生殖", def: "生物が自分と同じ種類の新しい個体（子）をつくること。", chap: 1 },
+  { term: "無性生殖", def: "雌雄の親を必要とせず、親の体の一部から新しい個体ができるふえ方。アメーバなどで見られる。", chap: 1 },
+  { term: "栄養生殖", def: "植物において、葉・茎・根といった体の一部から新しい個体をつくる無性生殖のこと。", chap: 1 },
+  { term: "有性生殖", def: "雌雄の親がかかわって子を残すふえ方。", chap: 1 },
+  { term: "生殖細胞", def: "子孫を残すための特別な細胞で、卵（卵細胞）や精子（精細胞）のこと。", chap: 1 },
+  { term: "受精", def: "卵（卵細胞）に精子（精細胞）が入り、それぞれの核が合体すること。", chap: 1 },
+  { term: "発生", def: "受精卵から胚を経て成体になるまでの成長過程。", chap: 1 },
+  { term: "花粉管", def: "花粉から胚珠に向かってのびる管。", chap: 1 },
+  { term: "染色体", def: "細胞分裂のときに見られるひものような形のもの。数は生物の種類によって決まっている。", chap: 1 },
+  { term: "細胞分裂", def: "1つの細胞が2つに分かれること。はじめに核が2つに分かれ、その後、細胞質が2つに分かれる。", chap: 1 },
+  { term: "体細胞分裂", def: "多細胞生物の体をつくる細胞で起こる細胞分裂。染色体の数は変わらない。", chap: 1 },
+  { term: "減数分裂", def: "生殖細胞がつくられるときに行われる細胞分裂。染色体の数が半分になる。", chap: 1 },
+  // 2章：遺伝の規則性と遺伝子
+  { term: "形質", def: "生物のもつ形や性質などの特徴。", chap: 2 },
+  { term: "遺伝", def: "親の形質が子やそれ以後の世代に現れること。", chap: 2 },
+  { term: "遺伝子", def: "遺伝するそれぞれの形質のもとになるもの。細胞の染色体にある。", chap: 2 },
+  { term: "純系", def: "同じ形質の個体をかけ合わせたとき、親・子・孫と世代を重ねても、つねに親と同じ形質である系統。", chap: 2 },
+  { term: "対立形質", def: "ある形質について、同時に現れない2つの対になる形質。丸としわなど。", chap: 2 },
+  { term: "顕性形質", def: "対立形質をもつ純系どうしをかけ合わせたとき、子に現れるほうの形質。", chap: 2 },
+  { term: "潜性形質", def: "対立形質をもつ純系どうしをかけ合わせたとき、子に現れないほうの形質。", chap: 2 },
+  { term: "分離の法則", def: "減数分裂の結果、対になっている遺伝子が分かれて別々の生殖細胞に入ること。", chap: 2 },
+  { term: "DNA（デオキシリボ核酸）", def: "形質のもとになっている遺伝子の本体である物質。染色体に含まれている。", chap: 2 },
+  // 3章：多様性と進化
+  { term: "進化", def: "生物が長い年月の中で世代を重ねる間に形質が変化していくこと。", chap: 3 },
+  { term: "相同器官", def: "現在の形やはたらきは異なるが、起源は同じものであったと推測できる器官。進化の証拠の1つ。", chap: 3 },
+  { term: "遺伝子の変化", def: "遺伝子は不変なものではなく、まれに変化することがある。これが進化のもとになる。", chap: 3 },
+];
+
+const CHAPTER_NAMES = { 1: "1章", 2: "2章", 3: "3章" };
+
+// ==================== 状態 ====================
+let selectedMode = 'term2def';
+let selectedChapters = [0]; // 0=全章
+let gameQuestions = [];
+let currentIdx = 0;
+let score = 0;
+let combo = 0;
+let timer = null;
+let timeLeft = 20;
+let maxTime = 20;
+let answered = false;
+let missedItems = [];
+let totalTime = 0;
+let questionStartTime = 0;
+let lastSettings = {};
+
+// ==================== パーティクル ====================
+(function() {
+  const container = document.getElementById('particles');
+  const colors = ['#00e5ff','#00ff9d','#7c4dff'];
+  for (let i = 0; i < 18; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.cssText = `
+      left: ${Math.random()*100}%;
+      animation-duration: ${6+Math.random()*12}s;
+      animation-delay: ${Math.random()*10}s;
+      background: ${colors[Math.floor(Math.random()*3)]};
+      width: ${2+Math.random()*4}px; height: ${2+Math.random()*4}px;
+      opacity: ${0.2+Math.random()*0.3};
+    `;
+    container.appendChild(p);
+  }
+})();
+
+// ==================== モード選択 ====================
+function selectMode(mode, el) {
+  selectedMode = mode;
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function toggleChap(n, el) {
+  document.querySelectorAll('.chap-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedChapters = [n];
+}
+
+// ==================== ゲーム開始 ====================
+function startGame() {
+  const qCount = parseInt(document.getElementById('qCount').value);
+  const chapFilter = selectedChapters[0];
+  
+  let pool = chapFilter === 0 ? [...QUIZ_DATA] : QUIZ_DATA.filter(d => d.chap === chapFilter);
+  if (pool.length < 4) { alert('データが不足しています。'); return; }
+  
+  // シャッフル
+  pool = pool.sort(() => Math.random()-0.5);
+  gameQuestions = pool.slice(0, Math.min(qCount, pool.length));
+  
+  lastSettings = { qCount, chapFilter };
+  maxTime = selectedMode === 'speed' ? 15 : 20;
+  
+  currentIdx = 0; score = 0; combo = 0; missedItems = []; totalTime = 0;
+  
+  showScreen('game');
+  loadQuestion();
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const s = document.getElementById(`screen-${name}`);
+  s.classList.add('active');
+  // force reflow for animation
+  void s.offsetWidth;
+}
+
+// ==================== 問題表示 ====================
+function loadQuestion() {
+  clearInterval(timer);
+  answered = false;
+  document.getElementById('answerHint').innerHTML = '';
+  document.getElementById('feedbackBar').className = 'feedback-bar';
+
+  const q = gameQuestions[currentIdx];
+  const total = gameQuestions.length;
+
+  document.getElementById('qNum').textContent = currentIdx + 1;
+  document.getElementById('qTotal').textContent = total;
+  document.getElementById('scoreNum').textContent = score;
+  document.getElementById('progressFill').style.width = `${(currentIdx/total)*100}%`;
+  document.getElementById('chapterTag').textContent = CHAPTER_NAMES[q.chap];
+
+  // モード判定
+  let mode = selectedMode;
+  if (mode === 'mixed') mode = Math.random() < 0.5 ? 'term2def' : 'def2term';
+  if (mode === 'speed') mode = Math.random() < 0.5 ? 'term2def' : 'def2term';
+
+  const isT2D = mode === 'term2def';
+  document.getElementById('qTypeBadge').textContent = isT2D ? '用語 → 説明' : '説明 → 用語';
+  document.getElementById('questionText').textContent = isT2D ? q.term : q.def;
+
+  // 4択生成
+  const allPool = selectedChapters[0] === 0 ? QUIZ_DATA : QUIZ_DATA.filter(d => d.chap === selectedChapters[0]);
+  const wrong = allPool.filter(d => d.term !== q.term).sort(() => Math.random()-0.5).slice(0, 3);
+  const choices = [q, ...wrong].sort(() => Math.random()-0.5);
+  const labels = ['A', 'B', 'C', 'D'];
+
+  const container = document.getElementById('choices');
+  container.innerHTML = '';
+  choices.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    const disp = isT2D ? c.def : c.term;
+    btn.innerHTML = `<span class="choice-label">${labels[i]}</span>${disp}`;
+    btn.onclick = () => answer(btn, c.term === q.term, q, isT2D);
+    container.appendChild(btn);
+  });
+
+  // タイマー開始
+  timeLeft = maxTime;
+  questionStartTime = Date.now();
+  updateTimer();
+  timer = setInterval(tick, 100);
+}
+
+function tick() {
+  timeLeft -= 0.1;
+  if (timeLeft <= 0) {
+    timeLeft = 0;
+    updateTimer();
+    clearInterval(timer);
+    if (!answered) {
+      answered = true;
+      combo = 0;
+      totalTime += maxTime;
+      const q = gameQuestions[currentIdx];
+      showAnswerHint(false, q);
+      document.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; b.classList.add('dimmed'); });
+      document.getElementById('feedbackBar').classList.add('wrong-fb');
+      missedItems.push(q);
+      setTimeout(nextQuestion, 1800);
+    }
+  } else {
+    updateTimer();
+  }
+}
+
+function updateTimer() {
+  const circ = 2 * Math.PI * 24;
+  const pct = timeLeft / maxTime;
+  const offset = circ * (1 - pct);
+  document.getElementById('timerCircle').style.strokeDashoffset = offset;
+  document.getElementById('timerNum').textContent = Math.ceil(timeLeft);
+
+  const numEl = document.getElementById('timerNum');
+  const fillEl = document.getElementById('timerCircle');
+  if (timeLeft <= 5) {
+    numEl.className = 'timer-num danger';
+    fillEl.className = 'timer-fill danger';
+  } else if (timeLeft <= 10) {
+    numEl.className = 'timer-num warn';
+    fillEl.className = 'timer-fill warn';
+  } else {
+    numEl.className = 'timer-num';
+    fillEl.className = 'timer-fill';
+  }
+}
+
+// ==================== 回答処理 ====================
+function answer(btn, isCorrect, q, isT2D) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timer);
+
+  const elapsed = (Date.now() - questionStartTime) / 1000;
+  totalTime += elapsed;
+
+  document.querySelectorAll('.choice-btn').forEach(b => {
+    b.disabled = true;
+    const btnText = isT2D ? q.def : q.term;
+    if (b.textContent.includes(btnText.substring(0,8))) {
+      b.classList.add('correct');
+    } else if (b !== btn && !b.classList.contains('correct')) {
+      b.classList.add('dimmed');
+    }
+  });
+
+  if (isCorrect) {
+    btn.classList.add('correct');
+    combo++;
+    const timeBonus = Math.floor(timeLeft * 3);
+    const comboBonus = combo >= 3 ? combo * 10 : 0;
+    const pts = 100 + timeBonus + comboBonus;
+    score += pts;
+    document.getElementById('scoreNum').textContent = score;
+    document.getElementById('feedbackBar').classList.add('correct-fb');
+    showScorePop(btn, pts);
+    updateCombo();
+    document.getElementById('answerHint').innerHTML = `<span style="color:var(--accent2)">✓ 正解！</span>`;
+  } else {
+    btn.classList.add('wrong');
+    combo = 0;
+    document.getElementById('feedbackBar').classList.add('wrong-fb');
+    showAnswerHint(false, q);
+    missedItems.push(q);
+    hideCombo();
+  }
+
+  setTimeout(nextQuestion, isCorrect ? 1200 : 1800);
+}
+
+function showAnswerHint(correct, q) {
+  document.getElementById('answerHint').innerHTML =
+    `<span style="color:var(--danger)">✗ タイムオーバー／不正解</span>　正解：<span class="correct-ans">【${q.term}】${q.def.substring(0,30)}…</span>`;
+}
+
+function showScorePop(btn, pts) {
+  const rect = btn.getBoundingClientRect();
+  const pop = document.createElement('div');
+  pop.className = 'score-pop';
+  pop.textContent = `+${pts}`;
+  pop.style.left = rect.left + rect.width/2 - 20 + 'px';
+  pop.style.top = rect.top + 'px';
+  document.body.appendChild(pop);
+  setTimeout(() => pop.remove(), 1000);
+}
+
+function updateCombo() {
+  const el = document.getElementById('comboDisplay');
+  if (combo >= 2) {
+    el.textContent = `🔥 ${combo} COMBO!`;
+    el.classList.add('show');
+  }
+}
+function hideCombo() {
+  document.getElementById('comboDisplay').classList.remove('show');
+}
+
+// ==================== 次の問題 ====================
+function nextQuestion() {
+  currentIdx++;
+  if (currentIdx >= gameQuestions.length) {
+    showResult();
+  } else {
+    loadQuestion();
+  }
+}
+
+// ==================== 結果 ====================
+function showResult() {
+  clearInterval(timer);
+  document.getElementById('progressFill').style.width = '100%';
+
+  const total = gameQuestions.length;
+  const correct = total - missedItems.length;
+  const pct = Math.round((correct/total)*100);
+  const avgTime = totalTime > 0 ? (totalTime/total).toFixed(1) : '0.0';
+
+  document.getElementById('resCorrect').textContent = `${correct}/${total}`;
+  document.getElementById('resScore').textContent = score;
+  document.getElementById('resTime').textContent = `${avgTime}s`;
+
+  let grade, label, comment;
+  if (pct >= 90) { grade='🏆'; label='PERFECT!'; comment='完璧です！全用語マスター達成！'; }
+  else if (pct >= 75) { grade='⭐'; label='GREAT!'; comment='素晴らしい！もう少しで完璧！'; }
+  else if (pct >= 50) { grade='👍'; label='GOOD!'; comment='まずまず！苦手な用語を復習しよう！'; }
+  else { grade='📚'; label='STUDY MORE'; comment='もう一度テキストで確認しよう！'; }
+
+  document.getElementById('resultGrade').textContent = grade;
+  document.getElementById('resultLabel').textContent = label;
+  document.getElementById('resultComment').textContent = comment;
+
+  const missEl = document.getElementById('missList');
+  const missItems = document.getElementById('missItems');
+  if (missedItems.length > 0) {
+    missEl.style.display = 'block';
+    missItems.innerHTML = [...new Map(missedItems.map(m => [m.term, m])).values()]
+      .map(m => `<div class="miss-item"><div class="miss-q">📌 ${m.term}</div><div class="miss-a">${m.def}</div></div>`)
+      .join('');
+  } else {
+    missEl.style.display = 'none';
+  }
+
+  showScreen('result');
+}
+
+function retryGame() { startGame(); }
+function goTitle() { showScreen('title'); }
+</script>
+</body>
+</html>
